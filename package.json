@@ -1,0 +1,41 @@
+{
+  "name": "face-meme-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:all": "node server.js",
+    "server": "node server.js",
+    "postinstall": "node scripts/setup-models.mjs",
+    "setup-models": "node scripts/setup-models.mjs",
+    "verify:beast": "node scripts/verify-beast2.mjs",
+    "test:accuracy": "node scripts/test-accuracy.mjs",
+    "build": "vite build",
+    "start": "node server.js",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@vladmandic/face-api": "^1.7.15",
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "onnxruntime-web": "^1.29.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "onnxruntime-node": "^1.29.0",
+    "oxlint": "^1.79.0",
+    "sharp": "^0.35.4",
+    "vite": "^8.2.2"
+  }
+}

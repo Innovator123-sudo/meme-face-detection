@@ -1,0 +1,16 @@
+# One-click full-stack deploy: https://render.com/docs/blueprint-spec
+# Local video clips are NOT in git — set MEME_DIR to a mounted disk, or run
+# with online packs only (the app degrades gracefully to Imgflip/Reddit).
+services:
+  - type: web
+    name: meme-face-detection
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NODE_ENV
+        value: production
