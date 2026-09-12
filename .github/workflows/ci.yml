@@ -19,5 +19,6 @@ jobs:
           key: rmn-int8-v1
       - run: npm ci
       - run: npm run test:accuracy
+      - run: node scripts/test-online-client.mjs
       - run: npm run lint
       - run: npm run build

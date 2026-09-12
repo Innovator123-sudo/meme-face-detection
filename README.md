@@ -33,6 +33,10 @@ Notes:
 - With no `MEME_DIR` videos present (typical on a host), the app serves the
   online packs only and reports it on `/api/health` — face detection still
   works fully.
+- GitHub Pages (static, no backend) serves 21 committed sample clips
+  (`public/sample-memes/`, 3 per emotion, ~11 MB) plus online packs fetched
+  directly in the browser (`src/lib/onlineClient.js`) — face matching works
+  end to end; the full 356-clip library needs the Render/Express backend.
 - Local dev: `npm install` (fetches models) then `npm run dev`
   (http://localhost:5173), or `npm run build` + `npm start`
   (http://localhost:3001, single-server production mode).
@@ -209,6 +213,10 @@ Then refresh the index: `POST /api/refresh`.
 - `src/lib/kuldeepBeast.js` — Kuldeep FER CNN ONNX loader (48x48 grayscale)
 - `src/lib/rmnBeast.js` — ResMaskingNet ONNX loader (224x224)
 - `src/lib/recommend.js` — expression-to-meme ranking
+- `src/lib/onlineClient.js` — backend-free online packs (Imgflip + meme-api.com) for static hosting
 - `src/lib/memeApi.js` — API client
+- `scripts/build-sample-memes.mjs` — regenerates `public/sample-memes.json` (`npm run sample-memes`)
+- `public/models/` — local face-AI weights (offline capable)
+- `public/sample-memes/` + `public/sample-memes.json` — committed demo clips for GitHub Pages (~11 MB)
 - `public/models/` — local face-AI weights (offline capable)
 - `public/kuldeep/kuldeep_fer48.onnx` — committed Kuldeep voter (~5 MB)

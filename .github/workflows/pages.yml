@@ -26,6 +26,8 @@ jobs:
           SKIP_RMN: '1'
       - run: npm run test:accuracy
       - run: npm run verify:kuldeep
+      - run: node scripts/test-online-client.mjs
+      - run: npm run sample-memes
       - run: npm run lint
       - run: npm run build
         env:

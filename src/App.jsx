@@ -159,11 +159,22 @@ export default function App() {
       setMemesLoading(false);
     }).catch(() => {
       if (cancelled) return;
-      // No backend (static hosting): not an error — online packs load directly below.
-      setMemes([]);
-      setMemesError('');
-      setMemesLoading(false);
+      // No backend (static hosting): not an error — serve the committed
+      // sample clips + online packs fetched directly below.
       setBackendDown(true);
+      fetch(assetUrl('sample-memes.json'))
+        .then((r) => (r.ok ? r.json() : []))
+        .then((d) => {
+          if (cancelled || !Array.isArray(d)) return;
+          setMemes(d);
+          setMemesLoading(false);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setMemes([]);
+          setMemesError('');
+          setMemesLoading(false);
+        });
     });
     // Warm both neural voters in the background (cached after first visit):
     // RMN 139 MB (strongest) + Kuldeep 5 MB committed ONNX (fast/offline).
@@ -643,8 +654,8 @@ export default function App() {
               {health.checked
                 ? (health.ok
                   ? `${memes.length} local${onlineMemes.length ? ` + ${onlineMemes.length} online` : ''} clips`
-                  : (onlineMemes.length
-                    ? `${onlineMemes.length} online clips (static demo)`
+                  : (allMemes.length
+                    ? `${memes.length ? `${memes.length} sample + ` : ''}${onlineMemes.length} online clips (static demo)`
                     : 'Library offline — retry'))
                 : 'Connecting to library…'}
             </span>
@@ -830,7 +841,7 @@ export default function App() {
         <section className="online-bar" aria-label="Online meme library">
           <span className="online-info">
             <strong>{allMemes.length} memes total</strong>
-            <span className="muted small">{memes.length} local · {onlineMemes.length} online{directOnline ? ' (direct)' : ''} · {nepaliCount} Nepali{backendDown && !memes.length ? ' · static demo' : ''}</span>
+            <span className="muted small">{memes.length} {backendDown ? 'sample' : 'local'} · {onlineMemes.length} online{directOnline ? ' (direct)' : ''} · {nepaliCount} Nepali{backendDown && !allMemes.length ? ' · static demo' : ''}</span>
             {session.picks > 0 && (
               <span className="muted small">Session: {session.picks} pic{session.picks === 1 ? 'k' : 'ks'}{session.topMood ? ` · top ${session.topMood}` : ''}</span>
             )}
