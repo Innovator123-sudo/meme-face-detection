@@ -210,6 +210,19 @@ export default function App() {
           setMemesError('');
           setMemesLoading(false);
         });
+      // Committed Hindi + Nepali catalog (800+, URL-only), merged as online.
+      fetch(assetUrl('desi-800.json'))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (cancelled || !Array.isArray(d?.memes)) return;
+          setOnlineMemes((prev) => {
+            const seen = new Set(prev.map((m) => m.url));
+            return [...prev, ...d.memes.filter((m) => m?.url && !seen.has(m.url))];
+          });
+          setOnlineRound((r) => r + 1);
+          setDirectOnline(true);
+        })
+        .catch(() => { /* live direct fetch below covers it */ });
     });
     // Warm both neural voters in the background (cached after first visit):
     // RMN 139 MB (strongest) + Kuldeep 5 MB committed ONNX (fast/offline).
@@ -962,7 +975,7 @@ export default function App() {
                     )}
                     <p className="muted small">{EMOTION_META[readingFaces[0].dominant]?.hint} Runner-up: {EMOTION_META[readingFaces[0].secondary]?.label} ({Math.round(readingFaces[0].secondaryScore * 100)}%).</p>
                     {frozen?.faces?.[0]?.voters && (
-                      <p className="muted small">Ensemble: {describeVoters(frozen.faces[0].voters)}{!frozen.faces[0].rmnUsed || !frozen.faces[0].kuldeepUsed ? ` (${[!frozen.faces[0].rmnUsed ? 'RMN warming up' : null, !frozen.faces[0].kuldeepUsed ? 'KUL warming up' : null].filter(Boolean).join(', ')})` : ''}</p>
+                      <p className="muted small">Ensemble: {describeVoters(frozen.faces[0].voters)}{frozen.faces[0].sadBoosted ? ' · sad corroborated' : ''}{!frozen.faces[0].rmnUsed || !frozen.faces[0].kuldeepUsed ? ` (${[!frozen.faces[0].rmnUsed ? 'RMN warming up' : null, !frozen.faces[0].kuldeepUsed ? 'KUL warming up' : null].filter(Boolean).join(', ')})` : ''}</p>
                     )}
                     {readingFaces.length > 1 && (
                       <p className="muted small">{readingFaces.length} faces detected — ranking uses the largest face.</p>

@@ -64,11 +64,23 @@ export async function beastFuse({ frameCanvas, box, ferProbs, landmarks }) {
     probs[e] = v;
   }
 
+  // Sad corroboration: landmark geometry sees frown/grief-brow structure the
+  // nets flatten on dim webcam frames (measured: Kuldeep reads an obvious
+  // crying face only sad 25% vs neutral 39%). When GEO is strongly sad AND at
+  // least one neural net also senses sad, lend sad +0.10 pre-fusion so the
+  // sad-rescue in summarizeExpressions can promote it. Never fires on
+  // geometry alone, so clear grins can't flip.
+  const geoSad = voters.geo?.sad ?? 0;
+  const neuralSad = Math.max(voters.rmn?.sad ?? 0, voters.kuldeep?.sad ?? 0, voters.fer?.sad ?? 0);
+  const sadBoosted = geoSad >= 0.40 && neuralSad >= 0.18;
+  if (sadBoosted) probs.sad = Math.min(1, (probs.sad ?? 0) + 0.10);
+
   return {
     ...summarizeExpressions(probs),
     voters,
     rmnUsed,
     kuldeepUsed,
+    sadBoosted,
   };
 }
 

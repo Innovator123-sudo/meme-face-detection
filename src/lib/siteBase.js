@@ -4,7 +4,9 @@
    API routes (/api/*) intentionally stay root-relative — they only exist on
    the Express backend, and Pages has none (calls fail gracefully there). */
 
-export const SITE_BASE = import.meta.env.BASE_URL || '/';
+/* `?.` keeps this importable in plain Node (script tests), where
+   import.meta.env does not exist — Vite still inlines BASE_URL at build. */
+export const SITE_BASE = import.meta.env?.BASE_URL || '/';
 
 /** Join the site base with a public-asset path, e.g. assetUrl('models') or assetUrl('ort/'). */
 export function assetUrl(p = '') {

@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       # Static Pages has no Express backend: skip the 139 MB RMN download.
       # The committed 5 MB Kuldeep ONNX + FER + geometry voters carry the reads.
@@ -27,6 +27,7 @@ jobs:
       - run: npm run test:accuracy
       - run: npm run verify:kuldeep
       - run: node scripts/test-online-client.mjs
+      - run: node scripts/test-beast-fusion.mjs
       - run: npm run video-catalog
       - run: npm run lint
       - run: npm run build

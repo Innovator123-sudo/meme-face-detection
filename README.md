@@ -51,6 +51,10 @@ Notes:
    keywords. `/api/online` adds ~700 keyless online memes per load (Imgflip
    classics, Reddit trending/funny/dank, desi subs, Nepali subs), classified
    with the same tagger. Served by Express in prod, by a Vite dev plugin in dev.
+   Static hosting (no backend) instead loads the committed `public/desi-800.json`
+   catalog — 800+ Hindi + Nepali memes harvested from desi subs (`node
+   scripts/build-desi-800.mjs` refreshes it) — plus packs fetched directly in
+   the browser.
 2. **Face AI (in-browser)** — `@vladmandic/face-api` + TensorFlow.js runs five
    model sets served locally from `public/models`: fast + accurate face detectors,
    68-point landmarks, FER-trained 7-channel expression classifier, age + gender.
@@ -169,6 +173,12 @@ Every frozen face gets four independent votes, fused late (RMN 0.38 / Kuldeep 0.
   signal): mouth corners, mouth openness, inner-brow raise (AU1 grief-brow),
   brow lowering, and eyelid droop from the 68-point mesh voting happy, sad,
   angry, surprised, fearful, disgusted, neutral.
+- **Sad corroboration** — measured headlessly that Kuldeep reads an obvious
+  crying face only sad 25% vs neutral 39%, so the nets can't carry sad alone:
+  when geometry is strongly sad (≥0.40) AND any neural net also senses sad
+  (≥0.18), sad gets +0.10 pre-fusion and the UI reports "sad corroborated".
+  Never fires on geometry alone, so grins can't flip. Locked by
+  `node scripts/test-beast-fusion.mjs` (7 checks).
 - Live scanning fuses FER + geometry every tick (no extra cost — landmarks
   are already computed), so sad shows in the LIVE badge, not just after
   freezing. Stills use the accurate SSD detector (0.35) with the frozen read
