@@ -27,7 +27,7 @@ jobs:
       - run: npm run test:accuracy
       - run: npm run verify:kuldeep
       - run: node scripts/test-online-client.mjs
-      - run: npm run sample-memes
+      - run: npm run video-catalog
       - run: npm run lint
       - run: npm run build
         env:

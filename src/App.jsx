@@ -159,10 +159,10 @@ export default function App() {
       setMemesLoading(false);
     }).catch(() => {
       if (cancelled) return;
-      // No backend (static hosting): not an error — serve the committed
-      // sample clips + online packs fetched directly below.
+      // No backend (static hosting): not an error — serve the cloud video
+      // catalog (full library mirrored to the CDN) + online packs below.
       setBackendDown(true);
-      fetch(assetUrl('sample-memes.json'))
+      fetch(assetUrl('video-catalog.json'))
         .then((r) => (r.ok ? r.json() : []))
         .then((d) => {
           if (cancelled || !Array.isArray(d)) return;
@@ -655,7 +655,7 @@ export default function App() {
                 ? (health.ok
                   ? `${memes.length} local${onlineMemes.length ? ` + ${onlineMemes.length} online` : ''} clips`
                   : (allMemes.length
-                    ? `${memes.length ? `${memes.length} sample + ` : ''}${onlineMemes.length} online clips (static demo)`
+                    ? `${memes.length ? `${memes.length} cloud + ` : ''}${onlineMemes.length} online clips (static demo)`
                     : 'Library offline — retry'))
                 : 'Connecting to library…'}
             </span>
@@ -841,7 +841,7 @@ export default function App() {
         <section className="online-bar" aria-label="Online meme library">
           <span className="online-info">
             <strong>{allMemes.length} memes total</strong>
-            <span className="muted small">{memes.length} {backendDown ? 'sample' : 'local'} · {onlineMemes.length} online{directOnline ? ' (direct)' : ''} · {nepaliCount} Nepali{backendDown && !allMemes.length ? ' · static demo' : ''}</span>
+            <span className="muted small">{memes.length} {backendDown ? 'cloud' : 'local'} · {onlineMemes.length} online{directOnline ? ' (direct)' : ''} · {nepaliCount} Nepali{backendDown && !allMemes.length ? ' · static demo' : ''}</span>
             {session.picks > 0 && (
               <span className="muted small">Session: {session.picks} pic{session.picks === 1 ? 'k' : 'ks'}{session.topMood ? ` · top ${session.topMood}` : ''}</span>
             )}

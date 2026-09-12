@@ -1,10 +1,10 @@
-/* Build the committed sample-clip manifest for static hosting.
-   Scans public/sample-memes/*.mp4 (a curated subset of the local
-   `video meme` folder, which is too big for git) plus
-   public/sample-images/*.jpg (Imgflip classics), and writes
-   public/sample-memes.json with the same shape the backend API returns,
-   so GitHub Pages can play real video memes with no Express server.
-   Usage: node scripts/build-sample-memes.mjs (also runs in pages.yml). */
+/* Build the cloud video catalog for static hosting.
+   Scans public/videos/*.mp4 (the full local `video meme` library, mirrored
+   into git so GitHub's CDN delivers it) plus public/sample-images/*.jpg
+   (Imgflip classics), and writes public/video-catalog.json with the same
+   shape the backend API returns. The Pages site treats this file as its
+   cloud video API — no Express server, no local files.
+   Usage: node scripts/build-video-catalog.mjs (also runs in pages.yml). */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,26 +18,26 @@ function imageTitle(file) {
 }
 
 const memes = [];
-const videosDir = path.join(appDir, 'public', 'sample-memes');
+const videosDir = path.join(appDir, 'public', 'videos');
 const videoFiles = fs.existsSync(videosDir) ? fs.readdirSync(videosDir).filter((f) => /\.mp4$/i.test(f)).sort() : [];
 for (const file of videoFiles) {
   let size = 0;
   try { size = fs.statSync(path.join(videosDir, file)).size; } catch { size = 0; }
   const c = classifyMeme(file);
   memes.push({
-    id: `sample-${memes.length}`,
+    id: `cloud-${memes.length}`,
     file,
     title: cleanTitle(file) || file,
-    url: `sample-memes/${encodeURIComponent(file)}`,
+    url: `videos/${encodeURIComponent(file)}`,
     emotion: c.primary,
     secondary: c.secondary,
     emotionScores: c.scores,
     actor: c.actor,
-    tags: [...c.tags, 'sample'],
+    tags: [...c.tags, 'cloud'],
     energy: c.energy,
     size,
     media: 'video',
-    source: 'sample',
+    source: 'cloud',
   });
 }
 const imagesDir = path.join(appDir, 'public', 'sample-images');
@@ -47,7 +47,7 @@ for (const file of imageFiles) {
   try { size = fs.statSync(path.join(imagesDir, file)).size; } catch { size = 0; }
   const c = classifyMeme(file);
   memes.push({
-    id: `sample-${memes.length}`,
+    id: `cloud-${memes.length}`,
     file,
     title: imageTitle(file),
     url: `sample-images/${encodeURIComponent(file)}`,
@@ -55,16 +55,16 @@ for (const file of imageFiles) {
     secondary: c.secondary,
     emotionScores: c.scores,
     actor: c.actor,
-    tags: [...c.tags, 'sample'],
+    tags: [...c.tags, 'cloud'],
     energy: c.energy,
     size,
     media: 'image',
-    source: 'sample',
+    source: 'cloud',
   });
 }
-const out = path.join(appDir, 'public', 'sample-memes.json');
+const out = path.join(appDir, 'public', 'video-catalog.json');
 fs.writeFileSync(out, JSON.stringify(memes, null, 1));
 const emo = {};
 for (const m of memes) emo[`${m.media}:${m.emotion}`] = (emo[`${m.media}:${m.emotion}`] || 0) + 1;
-console.log(`[sample-memes] wrote ${memes.length} entries (${videoFiles.length} video + ${imageFiles.length} image) -> public/sample-memes.json`);
-console.log('[sample-memes] breakdown:', JSON.stringify(emo));
+console.log(`[video-catalog] wrote ${memes.length} entries (${videoFiles.length} video + ${imageFiles.length} image) -> public/video-catalog.json`);
+console.log('[video-catalog] breakdown:', JSON.stringify(emo));

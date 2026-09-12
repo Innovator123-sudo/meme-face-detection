@@ -33,12 +33,12 @@ Notes:
 - With no `MEME_DIR` videos present (typical on a host), the app serves the
   online packs only and reports it on `/api/health` — face detection still
   works fully.
-- GitHub Pages (static, no backend) serves 120 committed sample clips plus
-  30 sample images (`public/sample-memes/`, `public/sample-images/`, ~65 MB)
-  plus online packs fetched directly in the browser (`src/lib/onlineClient.js`)
-  — face matching works end to end, and ranking prefers video clips (+0.15
-  video bonus in `src/lib/recommend.js`); the full 356-clip library needs the
-  Render/Express backend.
+- GitHub Pages (static, no backend) serves the full 356-clip library mirrored
+  to the CDN (`public/videos/`, ~192 MB) plus 30 classic images, listed by the
+  cloud catalog `public/video-catalog.json`, plus online packs fetched directly
+  in the browser (`src/lib/onlineClient.js`) — face matching works end to end,
+  and ranking prefers video clips (+0.15 video bonus in `src/lib/recommend.js`).
+  Nothing is read from local files at runtime.
 - Local dev: `npm install` (fetches models) then `npm run dev`
   (http://localhost:5173), or `npm run build` + `npm start`
   (http://localhost:3001, single-server production mode).
@@ -217,8 +217,8 @@ Then refresh the index: `POST /api/refresh`.
 - `src/lib/recommend.js` — expression-to-meme ranking
 - `src/lib/onlineClient.js` — backend-free online packs (Imgflip + meme-api.com) for static hosting
 - `src/lib/memeApi.js` — API client
-- `scripts/build-sample-memes.mjs` — regenerates `public/sample-memes.json` (`npm run sample-memes`)
+- `scripts/build-video-catalog.mjs` — regenerates `public/video-catalog.json` (`npm run video-catalog`)
 - `public/models/` — local face-AI weights (offline capable)
-- `public/sample-memes/` + `public/sample-images/` + `public/sample-memes.json` — committed demo library for GitHub Pages (120 video + 30 image)
+- `public/videos/` + `public/sample-images/` + `public/video-catalog.json` — full library mirrored to the CDN for GitHub Pages (356 video + 30 image)
 - `public/models/` — local face-AI weights (offline capable)
 - `public/kuldeep/kuldeep_fer48.onnx` — committed Kuldeep voter (~5 MB)
