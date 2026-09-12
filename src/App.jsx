@@ -5,6 +5,7 @@ import { fetchMemes, fetchHealth, memeUrl, recordEvent, fetchSession } from './l
 import { beastFuse, describeVoters } from './lib/beast.js';
 import { subscribeRmnStatus, ensureRmn } from './lib/rmnBeast.js';
 import { subscribeKuldeepStatus, ensureKuldeep } from './lib/kuldeepBeast.js';
+import { fetchOnlineDirect } from './lib/onlineClient.js';
 import { assetUrl } from './lib/siteBase.js';
 
 /* ---------- small inline SVG icons (no emoji anywhere in the UI) ---------- */
@@ -93,6 +94,10 @@ export default function App() {
   const [onlineError, setOnlineError] = useState('');
   const [onlineRound, setOnlineRound] = useState(0);
   const [session, setSession] = useState({ picks: 0, topMood: null });
+  // Static hosting (GitHub Pages) has no Express backend: /api/* 404s and the
+  // app serves online packs fetched directly in the browser instead.
+  const [backendDown, setBackendDown] = useState(false);
+  const [directOnline, setDirectOnline] = useState(false);
 
   const refreshSession = useCallback(() => {
     fetchSession().then(setSession).catch(() => {});
@@ -147,15 +152,18 @@ export default function App() {
       .then(() => { if (!cancelled) setModelState({ ready: true, msg: 'AI ready', error: '' }); })
       .catch((e) => { if (!cancelled) setModelState({ ready: false, msg: '', error: e?.message || 'Could not load face AI models.' }); });
     fetchHealth().then((h) => { if (!cancelled) setHealth({ ok: true, count: h.count, checked: true }); })
-      .catch(() => { if (!cancelled) setHealth({ ok: false, count: 0, checked: true }); });
+      .catch(() => { if (!cancelled) { setHealth({ ok: false, count: 0, checked: true }); setBackendDown(true); } });
     fetchMemes({}).then((d) => {
       if (cancelled) return;
       setMemes(d.memes || []);
       setMemesLoading(false);
-    }).catch((e) => {
+    }).catch(() => {
       if (cancelled) return;
-      setMemesError(e.message);
+      // No backend (static hosting): not an error — online packs load directly below.
+      setMemes([]);
+      setMemesError('');
       setMemesLoading(false);
+      setBackendDown(true);
     });
     // Warm both neural voters in the background (cached after first visit):
     // RMN 139 MB (strongest) + Kuldeep 5 MB committed ONNX (fast/offline).
@@ -167,19 +175,35 @@ export default function App() {
     return () => { cancelled = true; unsubBeast(); unsubKuldeep(); };
   }, [refreshSession]);
 
-  /* ---- online bonus packs: 100 classics + trending + Nepali, topped up on demand ---- */
+  /* ---- online bonus packs: backend /api/online first, direct browser fetch
+     ---- as the static-hosting fallback (GitHub Pages has no Express server). */
   const loadOnline = useCallback(async (fresh) => {
     setOnlineLoading(true);
     setOnlineError('');
+    const mergeMemes = (list) => {
+      setOnlineRound((r) => r + 1);
+      setOnlineMemes((prev) => {
+        const seen = new Set(prev.map((m) => m.url));
+        return [...prev, ...(list || []).filter((m) => m.url && !seen.has(m.url))];
+      });
+    };
     try {
       const res = await fetch(`/api/online?packs=classics,trending,desi,nepali&count=100${fresh ? '&nocache=1' : ''}`);
       if (!res.ok) throw new Error(`Online library failed (${res.status})`);
       const d = await res.json();
-      setOnlineRound((r) => r + 1);
-      setOnlineMemes((prev) => {
-        const seen = new Set(prev.map((m) => m.url));
-        return [...prev, ...(d.memes || []).filter((m) => m.url && !seen.has(m.url))];
-      });
+      mergeMemes(d.memes);
+      if (d.errors?.length) setOnlineError(`Some packs lagged: ${d.errors.join('; ')}`);
+      setOnlineLoading(false);
+      return;
+    } catch {
+      // Backend unreachable — fetch packs directly in the browser.
+    }
+    try {
+      const d = await fetchOnlineDirect();
+      if (!d.memes.length) throw new Error('no online memes received');
+      mergeMemes(d.memes);
+      setDirectOnline(true);
+      setBackendDown(true);
       if (d.errors?.length) setOnlineError(`Some packs lagged: ${d.errors.join('; ')}`);
     } catch (e) {
       setOnlineError(e?.message || 'Could not load online memes. Check your internet and retry.');
@@ -188,12 +212,13 @@ export default function App() {
     }
   }, []);
 
-  // Pull the first online batch automatically once the local index is ready
+  // Pull the first online batch automatically once the boot settles — even with
+  // zero local clips (static hosting), so the page never sits at "0 memes".
   useEffect(() => {
-    if (!memesLoading && memes.length && onlineRound === 0 && !onlineLoading && !onlineMemes.length) {
+    if (!memesLoading && onlineRound === 0 && !onlineLoading && !onlineMemes.length) {
       loadOnline(false);
     }
-  }, [memesLoading, memes, onlineRound, onlineLoading, onlineMemes.length, loadOnline]);
+  }, [memesLoading, onlineRound, onlineLoading, onlineMemes.length, loadOnline]);
 
   const allMemes = useMemo(() => [...memes, ...onlineMemes], [memes, onlineMemes]);
   const nepaliCount = useMemo(() => allMemes.filter((m) => m.tags.includes('nepali')).length, [allMemes]);
@@ -618,7 +643,9 @@ export default function App() {
               {health.checked
                 ? (health.ok
                   ? `${memes.length} local${onlineMemes.length ? ` + ${onlineMemes.length} online` : ''} clips`
-                  : 'Library offline — retry')
+                  : (onlineMemes.length
+                    ? `${onlineMemes.length} online clips (static demo)`
+                    : 'Library offline — retry'))
                 : 'Connecting to library…'}
             </span>
             <span className={`ai-pill${modelState.ready ? ' ready' : ''}`}>
@@ -803,7 +830,7 @@ export default function App() {
         <section className="online-bar" aria-label="Online meme library">
           <span className="online-info">
             <strong>{allMemes.length} memes total</strong>
-            <span className="muted small">{memes.length} local · {onlineMemes.length} online · {nepaliCount} Nepali</span>
+            <span className="muted small">{memes.length} local · {onlineMemes.length} online{directOnline ? ' (direct)' : ''} · {nepaliCount} Nepali{backendDown && !memes.length ? ' · static demo' : ''}</span>
             {session.picks > 0 && (
               <span className="muted small">Session: {session.picks} pic{session.picks === 1 ? 'k' : 'ks'}{session.topMood ? ` · top ${session.topMood}` : ''}</span>
             )}
