@@ -48,6 +48,40 @@ function clearOverlay(canvas) {
   if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
+/* ---------- side-by-side snapshot (you + meme in one PNG) ---------- */
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Snapshot blocked (the meme host forbids it) — use the raw clip buttons instead.'));
+    img.src = src;
+  });
+}
+
+function drawCover(ctx, src, sw, sh, dx, dy, dw, dh) {
+  const sRatio = sw / sh, dRatio = dw / dh;
+  let sx = 0, sy = 0, cw = sw, ch = sh;
+  if (sRatio > dRatio) { cw = sh * dRatio; sx = (sw - cw) / 2; }
+  else { ch = sw / dRatio; sy = (sh - ch) / 2; }
+  ctx.drawImage(src, sx, sy, cw, ch, dx, dy, dw, dh);
+}
+
+function banner(ctx, text, x, y) {
+  ctx.font = '600 26px Inter, system-ui, sans-serif';
+  const w = Math.min(ctx.measureText(text).width + 36, 600);
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, 44, 10);
+    ctx.fill();
+  } else {
+    ctx.fillRect(x, y, w, 44);
+  }
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(text, x + 18, y + 30, w - 36);
+}
+
 /* What each detected expression pulls from the library (also rendered as a chart). */
 const GUIDE = [
   { emotion: 'happy', photo: assetUrl('guide/happy.jpg'), alt: 'Smiling woman', sign: 'Smile, raised cheeks, laughing eyes', mood: 'Happy clips — laughter, dance, celebration' },
@@ -133,6 +167,7 @@ export default function App() {
   const liveCanvasRef = useRef(null);
   const frozenImgRef = useRef(null);
   const frozenCanvasRef = useRef(null);
+  const stageVideoRef = useRef(null); // staged meme <video> (frame grabs for snapshots)
   const uploadImgRef = useRef(null);
   const uploadCanvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -234,19 +269,25 @@ export default function App() {
   const allMemes = useMemo(() => [...memes, ...onlineMemes], [memes, onlineMemes]);
   const nepaliCount = useMemo(() => allMemes.filter((m) => m.tags.includes('nepali')).length, [allMemes]);
 
-  // Deep link: ?meme=<file-or-url> opens that clip straight in the preview player.
-  const deepLinkedRef = useRef(false);
+  // Deep link: ?meme=<file-or-url> pops that clip open in the preview player.
+  // Retried until the library settles — online packs arrive after first paint.
+  const deepLinkDoneRef = useRef(false);
   useEffect(() => {
-    if (deepLinkedRef.current || !allMemes.length) return;
-    deepLinkedRef.current = true;
+    if (deepLinkDoneRef.current || !allMemes.length) return;
+    let want = null;
     try {
-      const want = new URLSearchParams(window.location.search).get('meme');
-      if (want) {
-        const hit = allMemes.find((m) => m.file === want);
-        if (hit) setSelected(hit);
-      }
-    } catch { /* ignore malformed URLs */ }
-  }, [allMemes]);
+      want = new URLSearchParams(window.location.search).get('meme');
+    } catch { want = null; }
+    if (!want) { deepLinkDoneRef.current = true; return; }
+    const hit = allMemes.find((m) => m.file === want);
+    if (hit) {
+      deepLinkDoneRef.current = true;
+      setSelected(hit);
+      return;
+    }
+    // No match yet and more memes may still arrive — keep waiting.
+    if (!memesLoading && !onlineLoading) deepLinkDoneRef.current = true;
+  }, [allMemes, memesLoading, onlineLoading]);
 
   /* ---- camera lifecycle ---- */
   const stopCamera = useCallback(() => {
@@ -477,6 +518,13 @@ export default function App() {
 
   const currentMeme = ranked.length ? ranked[currentIdx % ranked.length] : null;
 
+  /* ---- mood wall: every top match for the detected mood, not just one ---- */
+  const moodKey = frozenPrimary?.dominant ?? livePrimary?.dominant ?? null;
+  const moodPicks = useMemo(() => {
+    if (!moodKey || !ranked.length) return [];
+    return ranked.filter((m) => m.emotion === moodKey).slice(0, 12);
+  }, [ranked, moodKey]);
+
   /* ---- Next: 3-second live re-scan, fresh photo, then a never-repeated meme
      matching the fresh reading. ---- */
   const handleNext = useCallback(async () => {
@@ -636,6 +684,104 @@ export default function App() {
     }
     copyMemeLink(m);
   }, [copyMemeLink, refreshSession]);
+
+  /* ---- render your frozen photo + the staged meme onto one canvas ---- */
+  const renderSideBySide = useCallback(async () => {
+    const faceEl = frozenImgRef.current;
+    const face = frozen?.faces?.[0];
+    if (!faceEl || !face || !currentMeme) throw new Error('Freeze a picture first, then retry.');
+    if (!faceEl.naturalWidth) throw new Error('Your photo is not ready yet — wait a second and retry.');
+    const canvas = document.createElement('canvas');
+    canvas.width = 1280;
+    canvas.height = 640;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, 1280, 640);
+    drawCover(ctx, faceEl, faceEl.naturalWidth, faceEl.naturalHeight, 0, 0, 640, 640);
+    if (currentMeme.media === 'image') {
+      const mi = await loadImage(memeUrl(currentMeme));
+      drawCover(ctx, mi, mi.naturalWidth, mi.naturalHeight, 640, 0, 640, 640);
+    } else {
+      const v = stageVideoRef.current;
+      if (!v || v.videoWidth < 10) throw new Error('Meme video is not ready — press play on the clip, then retry.');
+      drawCover(ctx, v, v.videoWidth, v.videoHeight, 640, 0, 640, 640);
+    }
+    banner(ctx, `YOU · ${face.dominant} ${Math.round(face.confidence * 100)}%`, 16, 16);
+    banner(ctx, currentMeme.title.slice(0, 34), 656, 16);
+    return canvas;
+  }, [frozen, currentMeme]);
+
+  /* ---- download the side-by-side snapshot (you + meme, one PNG) ---- */
+  const downloadSideBySide = useCallback(async () => {
+    setShareMsg('');
+    try {
+      const canvas = await renderSideBySide();
+      let url;
+      try {
+        url = canvas.toDataURL('image/png');
+      } catch {
+        throw new Error('Snapshot blocked (the meme host forbids it) — use Save raw clip instead.');
+      }
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `facememe-${frozen?.faces?.[0]?.dominant || 'you'}-side-by-side.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setShareMsg('Side-by-side snapshot downloaded — you on the left, meme on the right.');
+      recordEvent('share');
+      refreshSession();
+      setTimeout(() => setShareMsg(''), 5000);
+    } catch (e) {
+      setShareMsg(e?.message || 'Could not build the snapshot.');
+      setTimeout(() => setShareMsg(''), 5000);
+    }
+  }, [renderSideBySide, frozen, refreshSession]);
+
+  /* ---- share the side-by-side snapshot; the replay link pops the meme open ---- */
+  const shareSideBySide = useCallback(async () => {
+    setShareMsg('');
+    const m = currentMeme;
+    const face = frozen?.faces?.[0];
+    if (!m || !face) { setFaceError('Freeze a picture first, then share.'); return; }
+    const text = `I got ${EMOTION_META[face.dominant]?.label} ${Math.round(face.confidence * 100)}% — my FaceMeme match: ${m.title}`;
+    // toDataURL throws synchronously on a tainted canvas (toBlob would hang),
+    // so it doubles as the taint check before sharing the file.
+    let dataUrl = '';
+    try {
+      const canvas = await renderSideBySide();
+      dataUrl = canvas.toDataURL('image/png');
+    } catch {
+      dataUrl = '';
+    }
+    if (dataUrl) {
+      try {
+        const blob = await (await fetch(dataUrl)).blob();
+        const file = new File([blob], `facememe-${face.dominant}-side-by-side.png`, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'My FaceMeme side-by-side', text, url: memeLink(m) });
+          recordEvent('share');
+          refreshSession();
+          return;
+        }
+      } catch (e) {
+        if (e?.name === 'AbortError') return; // user dismissed the sheet
+      }
+    } else {
+      setShareMsg('Snapshot blocked (the meme host forbids it) — sharing the replay link instead.');
+    }
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'My FaceMeme side-by-side', text, url: memeLink(m) });
+        recordEvent('share');
+        refreshSession();
+        return;
+      }
+    } catch (e) {
+      if (e?.name === 'AbortError') return;
+    }
+    copyMemeLink(m);
+  }, [currentMeme, frozen, renderSideBySide, refreshSession, copyMemeLink]);
 
   return (
     <div className="page">
@@ -886,7 +1032,7 @@ export default function App() {
                   {currentMeme.media === 'image' ? (
                     <img src={memeUrl(currentMeme)} alt={currentMeme.title} className="media contain" loading="lazy" />
                   ) : (
-                    <video key={currentMeme.file} src={memeUrl(currentMeme)} className="media" controls autoPlay loop playsInline />
+                    <video ref={stageVideoRef} key={currentMeme.file} src={memeUrl(currentMeme)} className="media" controls autoPlay loop playsInline />
                   )}
                 </div>
                 <figcaption>
@@ -909,15 +1055,41 @@ export default function App() {
               <button className="btn" onClick={skipMeme} disabled={!ranked.length || nextBusy}>Different meme</button>
               <button className="btn" onClick={retake} disabled={nextBusy}>Retake picture</button>
               <button className="btn" onClick={() => setSelected(currentMeme)}>{Icon.play()} Fullscreen preview</button>
-              <button className="btn" onClick={() => shareMeme(currentMeme)}>{Icon.upload()} Share</button>
+              <button className="btn primary" onClick={shareSideBySide}>{Icon.upload()} Share side-by-side</button>
+              <button className="btn" onClick={downloadSideBySide}>{Icon.download()} Download side-by-side</button>
               <button className="btn" onClick={() => copyMemeLink(currentMeme)}>Copy replay link</button>
               {currentMeme.source === 'online'
                 ? <a className="btn" href={memeUrl(currentMeme)} target="_blank" rel="noreferrer">{Icon.download()} Open original</a>
-                : <a className="btn" href={memeUrl(currentMeme)} download={currentMeme.file}>{Icon.download()} Save clip</a>}
+                : <a className="btn" href={memeUrl(currentMeme)} download={currentMeme.file}>{Icon.download()} Save raw clip</a>}
             </div>
             {nextMsg && <p className="next-msg" role="status">{nextMsg}</p>}
             {shareMsg && <p className="share-msg" role="status">{shareMsg}</p>}
             <p className="hint">How it works: <strong>Next</strong> re-scans your face for 3 seconds, refreshes your photo, then shows a fresh meme of that mood — never a repeat until the whole mood has played. <strong>Different meme</strong> swaps instantly without scanning.</p>
+          </section>
+        )}
+
+        {/* ------- mood wall: every top match for the detected mood ------- */}
+        {moodPicks.length > 1 && moodKey && (
+          <section className="card results" aria-label={`More ${moodKey} memes`}>
+            <div className="card-head wrap">
+              <h2>More {EMOTION_META[moodKey]?.label} memes — tap any to play it</h2>
+              <span className="muted small">{moodPicks.length} top matches for this face</span>
+            </div>
+            <div className="thumb-grid">
+              {moodPicks.map((m) => (
+                <button key={m.id} className="thumb" onClick={() => setSelected(m)} aria-label={`Preview ${m.title}`}>
+                  {m.media === 'image' ? (
+                    <img src={memeUrl(m)} alt={m.title} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  ) : (
+                    <video src={memeUrl(m)} muted playsInline preload="none" aria-label={m.title} />
+                  )}
+                  <span className="thumb-cap">
+                    <strong>{m.title}</strong>
+                    <span className="thumb-pct">{m.matchPercent}% match</span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </section>
         )}
 

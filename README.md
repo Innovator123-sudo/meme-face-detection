@@ -105,6 +105,13 @@ http://localhost:3001) still works and is the fastest option.
   your photo refreshes too, and a fresh never-repeated meme of that mood shows
   up (each mood plays through fully before repeating). Press **Different meme**
   to swap instantly without scanning. **Retake picture** starts over.
+- **Mood wall** — every top match for the detected mood (up to 12 video-first
+  picks) in a tap-to-play grid under the stage, so one 85% happy read plays a
+  whole wall of clips, not a single meme.
+- **Download / Share side-by-side** — both capture one PNG with your frozen
+  expression on the left and the staged meme on the right (current video frame
+  for clips). Sharing attaches that PNG plus a replay link (`?meme=...`) that
+  pops the exact meme open in the preview player when tapped.
 - **Expression guide** — A photo chart under the stage shows real people making
   each of the 7 readable expressions, the facial signs to copy, and the meme
   mood each triggers (`public/guide/`, bundled with the app).
