@@ -1,17 +1,18 @@
-/* The Beast: a 3-voter late-fusion ensemble for one frozen face.
-   - RMN ResMaskingNet ONNX (phamquiluan, ICPR 2020) ......... weight 0.46
-   - FER classifier (face-api, calibrated live reading) ..... weight 0.32
-   - Geometric landmark voter (amineHorseman-style) ......... weight 0.22
-   GEO was raised (was 0.15) because it sees frown/grief-brow structure the
-   FER net flattens — the main sad-miss fix alongside FER sad-rescue.
-   Missing voters are skipped and the rest renormalize, so the app never
-   breaks when the 139 MB model is still downloading or offline. */
+/* The Beast: a 4-voter late-fusion ensemble for one frozen face.
+   - RMN ResMaskingNet ONNX (phamquiluan, ICPR 2020) ......... weight 0.38
+   - Kuldeep FER CNN 48x48 (kuldeepstechwork, FER2013) ....... weight 0.24
+   - FER classifier (face-api, calibrated live reading) ..... weight 0.22
+   - Geometric landmark voter (amineHorseman-style) ......... weight 0.16
+   Kuldeep is the small committed ONNX (~5 MB, loads fast/offline) while RMN
+   stays the strongest voter when its 139 MB weights are warm. Missing voters
+   are skipped and the rest renormalize, so the app never breaks offline. */
 
 import { summarizeExpressions, EXPRESSIONS } from './expressionLogic.js';
 import { ensureRmn, rmnClassify } from './rmnBeast.js';
+import { ensureKuldeep, kuldeepClassify } from './kuldeepBeast.js';
 import { geometricVote } from './geoVoter.js';
 
-const WEIGHTS = { rmn: 0.46, fer: 0.32, geo: 0.22 };
+const WEIGHTS = { rmn: 0.38, kuldeep: 0.24, fer: 0.22, geo: 0.16 };
 
 /**
  * @param {Object} args
@@ -38,7 +39,17 @@ export async function beastFuse({ frameCanvas, box, ferProbs, landmarks }) {
       voters.rmn = rmn;
       rmnUsed = true;
     }
-  } catch { /* RMN offline — FER + GEO carry the read */ }
+  } catch { /* RMN offline — others carry the read */ }
+
+  let kuldeepUsed = false;
+  try {
+    await ensureKuldeep();
+    const kuldeep = await kuldeepClassify(frameCanvas, box);
+    if (kuldeep) {
+      voters.kuldeep = kuldeep;
+      kuldeepUsed = true;
+    }
+  } catch { /* Kuldeep offline — FER + GEO + RMN carry the read */ }
 
   let wsum = 0;
   for (const name of Object.keys(voters)) wsum += WEIGHTS[name] ?? 0;
@@ -57,13 +68,14 @@ export async function beastFuse({ frameCanvas, box, ferProbs, landmarks }) {
     ...summarizeExpressions(probs),
     voters,
     rmnUsed,
+    kuldeepUsed,
   };
 }
 
-/** One-line voter readout for the UI, e.g. "RMN happy 71% · FER happy 64% · GEO sad". */
+/** One-line voter readout for the UI, e.g. "RMN happy 71% · KUL happy 64% · FER happy 60% · GEO sad". */
 export function describeVoters(voters) {
   if (!voters) return '';
-  const names = { rmn: 'RMN', fer: 'FER', geo: 'GEO' };
+  const names = { rmn: 'RMN', kuldeep: 'KUL', fer: 'FER', geo: 'GEO' };
   return Object.entries(voters)
     .map(([name, probs]) => {
       let best = 'neutral', bestV = -1;

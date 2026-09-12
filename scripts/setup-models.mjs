@@ -2,8 +2,9 @@
    - public/ort/*.wasm ......... copied from node_modules/onnxruntime-web/dist
    - public/rmn/resmasking_int8.onnx (139 MB, over GitHub's 100 MB limit)
      downloaded once from Hugging Face, skipped when already present.
-   The RMN model is OPTIONAL: without it the app still reads faces with the
-   FER classifier + geometry voter (beast.js renormalizes the weights).
+   - public/kuldeep/kuldeep_fer48.onnx (~5 MB) IS committed to git, verified here.
+   The RMN model is OPTIONAL: without it the app still reads faces with
+   Kuldeep + FER classifier + geometry voter (beast.js renormalizes weights).
    Usage: node scripts/setup-models.mjs (also runs as `postinstall`). */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -82,6 +83,16 @@ if (missing.length) {
   failed = true;
 } else {
   console.log('[setup-models] face-api weights ok');
+}
+
+// 4. Kuldeep FER CNN: small committed ONNX, must exist (no download — it is in git).
+const kuldeepPath = path.join(appDir, 'public', 'kuldeep', 'kuldeep_fer48.onnx');
+if (!fs.existsSync(kuldeepPath)) {
+  console.log('[setup-models] WARN kuldeep ONNX missing: public/kuldeep/kuldeep_fer48.onnx (beast runs without KUL voter)');
+  failed = true;
+} else {
+  const mb = (fs.statSync(kuldeepPath).size / 1048576).toFixed(1);
+  console.log(`[setup-models] kuldeep ok: kuldeep_fer48.onnx (${mb} MB, committed)`);
 }
 if (failed) console.log('[setup-models] done with warnings (non-fatal)');
 else console.log('[setup-models] done');

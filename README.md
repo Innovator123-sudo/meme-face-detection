@@ -24,8 +24,12 @@ Notes:
   via [phamquiluan/ResidualMaskingNetwork](https://huggingface.co/phamquiluan/ResidualMaskingNetwork))
   are **not in git** (GitHub 100 MB limit) — `postinstall`
   (`scripts/setup-models.mjs`) downloads them once; the app runs without them
-  (FER + geometry fallback) if the download fails. ORT wasm files are copied
+  (Kuldeep + FER + geometry fallback) if the download fails. ORT wasm files are copied
   from the installed `onnxruntime-web` npm package the same way.
+- The Kuldeep FER CNN (`public/kuldeep/kuldeep_fer48.onnx`, ~5 MB, converted
+  from [kuldeepstechwork/Face-Expression-Recognition-using-Deep-Learning](https://github.com/kuldeepstechwork/Face-Expression-Recognition-using-Deep-Learning)
+  `model.h5`) **is in git** — it loads fast/offline as the Beast's second neural voter.
+  Verify with `npm run verify:kuldeep`.
 - With no `MEME_DIR` videos present (typical on a host), the app serves the
   online packs only and reports it on `/api/health` — face detection still
   works fully.
@@ -124,7 +128,7 @@ http://localhost:3001) still works and is the fastest option.
 
 ## Face AI accuracy notes (the Beast ensemble)
 
-Every frozen face gets three independent votes, fused late (RMN 0.46 / FER 0.32 / geometry 0.22):
+Every frozen face gets four independent votes, fused late (RMN 0.38 / Kuldeep 0.24 / FER 0.22 / geometry 0.16):
 
 - **ResMaskingNet** (phamquiluan, ICPR 2020, MIT) — the strongest of your four
   repos on FER2013 (74–77%). Runs locally as the official `resmasking_int8.onnx`
@@ -135,6 +139,12 @@ Every frozen face gets three independent votes, fused late (RMN 0.46 / FER 0.32 
   photos): angry 94%, happy 92%, sad 99%, surprised 88% correct. Known limit:
   disgust is FER2013's hardest class (~500 training samples vs ~7000 happy),
   so the ensemble leans on the FER + geometry voters there.
+- **Kuldeep FER CNN** ([kuldeepstechwork](https://github.com/kuldeepstechwork/Face-Expression-Recognition-using-Deep-Learning),
+  FER2013 7-emotion CNN, 48x48 grayscale, 1.3M params) — converted from `model.h5`
+  to `public/kuldeep/kuldeep_fer48.onnx` (~5 MB, ONNX opset 13, committed to git)
+  so it loads fast and works offline on first visit. Same tight-box + `/255`
+  preprocessing as its `main.py`. Verified (`npm run verify:kuldeep`, TF vs ONNX
+  parity 4.5e-08, guide-photo smoke test).
 - **FER classifier** (`@vladmandic/face-api`) — calibrated against its neutral
   bias (sad 1.32x, fearful/disgusted/angry ~1.12x, neutral 0.62x), with
   runner-up promotion (weak neutral < 0.60 loses to any felt emotion > 0.18),
@@ -145,8 +155,7 @@ Every frozen face gets three independent votes, fused late (RMN 0.46 / FER 0.32 
 - **Landmark-geometry voter** — the amineHorseman idea (facial geometry as
   signal): mouth corners, mouth openness, inner-brow raise (AU1 grief-brow),
   brow lowering, and eyelid droop from the 68-point mesh voting happy, sad,
-  angry, surprised, fearful, disgusted, neutral. Raised to 0.22 ensemble
-  weight so frown structure the FER net flattens still counts.
+  angry, surprised, fearful, disgusted, neutral.
 - Live scanning fuses FER + geometry every tick (no extra cost — landmarks
   are already computed), so sad shows in the LIVE badge, not just after
   freezing. Stills use the accurate SSD detector (0.35) with the frozen read
@@ -196,6 +205,10 @@ Then refresh the index: `POST /api/refresh`.
 - `server.js` — meme classification + static video/API server
 - `src/App.jsx` — full UI (capture, analysis, results, player modal)
 - `src/lib/faceEngine.js` — model loading, detection, canvas overlay
+- `src/lib/beast.js` — 4-voter late fusion (RMN + Kuldeep + FER + geometry)
+- `src/lib/kuldeepBeast.js` — Kuldeep FER CNN ONNX loader (48x48 grayscale)
+- `src/lib/rmnBeast.js` — ResMaskingNet ONNX loader (224x224)
 - `src/lib/recommend.js` — expression-to-meme ranking
 - `src/lib/memeApi.js` — API client
 - `public/models/` — local face-AI weights (offline capable)
+- `public/kuldeep/kuldeep_fer48.onnx` — committed Kuldeep voter (~5 MB)

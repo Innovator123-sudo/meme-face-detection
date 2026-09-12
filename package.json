@@ -10,6 +10,7 @@
     "postinstall": "node scripts/setup-models.mjs",
     "setup-models": "node scripts/setup-models.mjs",
     "verify:beast": "node scripts/verify-beast2.mjs",
+    "verify:kuldeep": "node scripts/verify-kuldeep.mjs",
     "test:accuracy": "node scripts/test-accuracy.mjs",
     "build": "vite build",
     "start": "node server.js",

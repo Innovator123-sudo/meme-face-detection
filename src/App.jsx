@@ -4,6 +4,7 @@ import { rankMemes, EMOTION_META, EMOTION_ORDER, describeFace } from './lib/reco
 import { fetchMemes, fetchHealth, memeUrl, recordEvent, fetchSession } from './lib/memeApi.js';
 import { beastFuse, describeVoters } from './lib/beast.js';
 import { subscribeRmnStatus, ensureRmn } from './lib/rmnBeast.js';
+import { subscribeKuldeepStatus, ensureKuldeep } from './lib/kuldeepBeast.js';
 
 /* ---------- small inline SVG icons (no emoji anywhere in the UI) ---------- */
 const Icon = {
@@ -80,6 +81,7 @@ function EmotionBars({ faces }) {
 export default function App() {
   const [modelState, setModelState] = useState({ ready: false, msg: 'Starting…', error: '' });
   const [beast, setBeast] = useState({ state: 'idle', progress: 0, error: '' });
+  const [kuldeep, setKuldeep] = useState({ state: 'idle', progress: 0, error: '' });
   const [health, setHealth] = useState({ ok: false, count: 0, checked: false });
   const [memes, setMemes] = useState([]);
   const [memesError, setMemesError] = useState('');
@@ -154,11 +156,14 @@ export default function App() {
       setMemesError(e.message);
       setMemesLoading(false);
     });
-    // Warm the 139 MB beast model in the background (cached after first visit)
+    // Warm both neural voters in the background (cached after first visit):
+    // RMN 139 MB (strongest) + Kuldeep 5 MB committed ONNX (fast/offline).
     const unsubBeast = subscribeRmnStatus((s) => { if (!cancelled) setBeast(s); });
-    ensureRmn().catch(() => { /* offline fallback: FER + GEO carry the reads */ });
+    ensureRmn().catch(() => { /* offline fallback: Kuldeep + FER + GEO carry the reads */ });
+    const unsubKuldeep = subscribeKuldeepStatus((s) => { if (!cancelled) setKuldeep(s); });
+    ensureKuldeep().catch(() => { /* offline fallback: RMN + FER + GEO carry the reads */ });
     refreshSession();
-    return () => { cancelled = true; unsubBeast(); };
+    return () => { cancelled = true; unsubBeast(); unsubKuldeep(); };
   }, [refreshSession]);
 
   /* ---- online bonus packs: 100 classics + trending + Nepali, topped up on demand ---- */
@@ -618,8 +623,10 @@ export default function App() {
             <span className={`ai-pill${modelState.ready ? ' ready' : ''}`}>
               {modelState.error ? 'AI failed'
                 : !modelState.ready ? 'Loading AI…'
-                : beast.state === 'ready' ? 'Beast ensemble ready'
-                : beast.state === 'loading' ? `Beast model ${Math.round((beast.progress || 0) * 100)}%`
+                : beast.state === 'ready' && kuldeep.state === 'ready' ? 'Beast 4-voter ready'
+                : beast.state === 'loading' ? `Beast RMN ${Math.round((beast.progress || 0) * 100)}%`
+                : kuldeep.state === 'loading' ? `Kuldeep CNN ${Math.round((kuldeep.progress || 0) * 100)}%`
+                : kuldeep.state === 'ready' ? 'Kuldeep CNN ready'
                 : 'On-device AI ready'}
             </span>
           </div>
@@ -770,7 +777,7 @@ export default function App() {
                     )}
                     <p className="muted small">{EMOTION_META[readingFaces[0].dominant]?.hint} Runner-up: {EMOTION_META[readingFaces[0].secondary]?.label} ({Math.round(readingFaces[0].secondaryScore * 100)}%).</p>
                     {frozen?.faces?.[0]?.voters && (
-                      <p className="muted small">Ensemble: {describeVoters(frozen.faces[0].voters)}{frozen.faces[0].rmnUsed ? '' : ' (RMN warming up)'}</p>
+                      <p className="muted small">Ensemble: {describeVoters(frozen.faces[0].voters)}{!frozen.faces[0].rmnUsed || !frozen.faces[0].kuldeepUsed ? ` (${[!frozen.faces[0].rmnUsed ? 'RMN warming up' : null, !frozen.faces[0].kuldeepUsed ? 'KUL warming up' : null].filter(Boolean).join(', ')})` : ''}</p>
                     )}
                     {readingFaces.length > 1 && (
                       <p className="muted small">{readingFaces.length} faces detected — ranking uses the largest face.</p>
@@ -902,12 +909,12 @@ export default function App() {
               </div>
             ))}
           </div>
-          <p className="muted small guide-credit">Guide photos: Flickr contributors (CC) · surprise photo: Wikimedia Commons. Detector: ResMaskingNet + FER + landmark-geometry ensemble.</p>
+          <p className="muted small guide-credit">Guide photos: Flickr contributors (CC) · surprise photo: Wikimedia Commons. Detector: ResMaskingNet + Kuldeep FER CNN + FER + landmark-geometry ensemble.</p>
         </section>
 
         <section className="how">
           <div><strong>Private by design</strong><p>Face detection runs in this browser with locally served model weights. Photos never leave the machine.</p></div>
-          <div><strong>How matching works</strong><p>Every frozen face gets three votes — ResMaskingNet (ICPR 2020, ONNX), the calibrated FER classifier, and a landmark-geometry voter — fused into one reading, then matched against Hindi/Hinglish-aware meme tags. Next runs a 3-second live scan and shows a freshly matched meme; Different meme swaps instantly.</p></div>
+          <div><strong>How matching works</strong><p>Every frozen face gets four votes — ResMaskingNet (ICPR 2020, ONNX), the Kuldeep FER CNN 48x48 (ONNX, committed in git), the calibrated FER classifier, and a landmark-geometry voter — fused into one reading, then matched against Hindi/Hinglish-aware meme tags. Next runs a 3-second live scan and shows a freshly matched meme; Different meme swaps instantly.</p></div>
           <div><strong>Your files stay yours, online packs on top</strong><p>Local clips stream from the <code>video meme</code> folder; the counter above merges in keyless online packs — Imgflip classics, Reddit trending and Nepali memes. Add or remove local MP4s and refresh the index.</p></div>
         </section>
       </main>
