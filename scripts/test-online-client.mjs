@@ -3,6 +3,7 @@
    Usage: node scripts/test-online-client.mjs (exit non-zero on failure) */
 import { classifyMeme as clientClassify, shapeOnline } from '../src/lib/onlineClient.js';
 import { classifyMeme as serverClassify } from '../memeIndex.js';
+import { rankMemes } from '../src/lib/recommend.js';
 
 let failures = 0;
 function check(name, cond, extra = '') {
@@ -53,3 +54,28 @@ check('client tagger matches server tagger', mismatches === 0, `${titles.length}
 
 if (failures) { console.log(`\n${failures} check(s) FAILED`); process.exit(1); }
 console.log('\nAll online-client checks passed.');
+
+// Video bias: same-emotion video must outrank the same-emotion image, and the
+// top pick for a felt emotion should be a video when one exists.
+{
+  const mk = (emotion, media, file) => ({
+    id: file, file, title: file, url: file, emotion, secondary: null,
+    actor: null, tags: [], energy: 'medium', size: 0, media, source: 'sample',
+  });
+  const analysis = {
+    expressions: { happy: 0.7, sad: 0.1, angry: 0.05, surprised: 0.05, fearful: 0.03, disgusted: 0.03, neutral: 0.04 },
+    dominant: 'happy', secondary: 'neutral', age: 30, gender: 'man',
+  };
+  const ranked = rankMemes([
+    mk('happy', 'image', 'img-happy.jpg'),
+    mk('happy', 'video', 'vid-happy.mp4'),
+    mk('sad', 'video', 'vid-sad.mp4'),
+    mk('neutral', 'image', 'img-neutral.jpg'),
+  ], analysis, 1);
+  check('video beats same-emotion image',
+    ranked.findIndex((m) => m.file === 'vid-happy.mp4') < ranked.findIndex((m) => m.file === 'img-happy.jpg'));
+  check('top pick is a video', ranked[0].media === 'video', `got ${ranked[0].file}`);
+}
+
+if (failures) { console.log(`\n${failures} check(s) FAILED`); process.exit(1); }
+console.log('\nAll ranking checks passed.');

@@ -26,6 +26,9 @@ function scoreOne(meme, expressions, dominant, secondary, seed) {
   if ((dominant === 'happy' || dominant === 'surprised') && meme.energy === 'high') score += 0.05;
   if ((dominant === 'sad' || dominant === 'fearful') && meme.energy === 'low') score += 0.05;
   if (dominant === 'neutral' && meme.emotion === 'neutral') score += 0.06;
+  // Video clips beat still images at similar emotion scores — this is a video
+  // meme app (local MP4s have no `media` field, so anything not 'image' counts).
+  if (meme.media !== 'image') score += 0.15;
   // Deterministic jitter so "Shuffle" gives fresh variety without pure randomness
   score += hashStr(`${meme.file}::${seed}`) * 0.05;
   return Math.min(0.99, score);
