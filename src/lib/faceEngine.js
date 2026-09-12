@@ -18,6 +18,7 @@ import {
   fuseLiveExpressions,
   blendStillWithPriors,
 } from './expressionLogic.js';
+import { assetUrl } from './siteBase.js';
 
 let modelsReady = false;
 let loadPromise = null;
@@ -64,7 +65,7 @@ export async function loadModels(onProgress) {
     } catch {
       // non-fatal, face-api will pick a backend
     }
-    const MODEL_URLS = ['/models', 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'];
+    const MODEL_URLS = [assetUrl('models'), 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'];
     const steps = [
       ['fast face detector (live)', (base) => faceapi.nets.tinyFaceDetector.loadFromUri(base)],
       ['accurate face detector (stills)', (base) => faceapi.nets.ssdMobilenetv1.loadFromUri(base)],

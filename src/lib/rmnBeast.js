@@ -3,7 +3,9 @@
    grayscale 0.299/0.587/0.114, 1.1x expanded square box, bilinear resize with
    OpenCV pixel-center mapping, /255 scaling, 224x224x3 NCHW float32. */
 
-const MODEL_URL = '/rmn/resmasking_int8.onnx';
+import { assetUrl } from './siteBase.js';
+
+const MODEL_URL = assetUrl('rmn/resmasking_int8.onnx');
 const FACE_SIZE = 224;
 
 // ONNX output order -> our expression keys
@@ -87,7 +89,7 @@ export function ensureRmn() {
       emit();
       try {
         ortModule = await import('onnxruntime-web');
-        ortModule.env.wasm.wasmPaths = '/ort/';
+        ortModule.env.wasm.wasmPaths = assetUrl('ort/');
         ortModule.env.wasm.numThreads = 1;
         ortModule.env.wasm.simd = true;
         const bytes = await fetchModelBytes();

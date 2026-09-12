@@ -5,7 +5,9 @@
    Preprocessing mirrors main.py exactly: tight face-box crop, bilinear resize
    to 48x48, /255 scaling, 1x48x48x1 float32 (NHWC, single channel). */
 
-const MODEL_URL = '/kuldeep/kuldeep_fer48.onnx';
+import { assetUrl } from './siteBase.js';
+
+const MODEL_URL = assetUrl('kuldeep/kuldeep_fer48.onnx');
 const FACE_SIZE = 48;
 
 // ONNX output order -> our expression keys.
@@ -90,7 +92,7 @@ export function ensureKuldeep() {
       emit();
       try {
         ortModule = await import('onnxruntime-web');
-        ortModule.env.wasm.wasmPaths = '/ort/';
+        ortModule.env.wasm.wasmPaths = assetUrl('ort/');
         ortModule.env.wasm.numThreads = 1;
         ortModule.env.wasm.simd = true;
         const bytes = await fetchModelBytes();

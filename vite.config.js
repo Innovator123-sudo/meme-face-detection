@@ -184,6 +184,8 @@ function memeDevPlugin() {
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Project Pages serves under /meme-face-detection/; local dev + Render stay at /.
+  base: process.env.GITHUB_PAGES === '1' ? '/meme-face-detection/' : '/',
   plugins: [react(), memeDevPlugin()],
   server: {
     port: 5173,

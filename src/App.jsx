@@ -5,6 +5,7 @@ import { fetchMemes, fetchHealth, memeUrl, recordEvent, fetchSession } from './l
 import { beastFuse, describeVoters } from './lib/beast.js';
 import { subscribeRmnStatus, ensureRmn } from './lib/rmnBeast.js';
 import { subscribeKuldeepStatus, ensureKuldeep } from './lib/kuldeepBeast.js';
+import { assetUrl } from './lib/siteBase.js';
 
 /* ---------- small inline SVG icons (no emoji anywhere in the UI) ---------- */
 const Icon = {
@@ -48,13 +49,13 @@ function clearOverlay(canvas) {
 
 /* What each detected expression pulls from the library (also rendered as a chart). */
 const GUIDE = [
-  { emotion: 'happy', photo: '/guide/happy.jpg', alt: 'Smiling woman', sign: 'Smile, raised cheeks, laughing eyes', mood: 'Happy clips — laughter, dance, celebration' },
-  { emotion: 'sad', photo: '/guide/sad.jpg', alt: 'Crying child', sign: 'Downturned mouth corners, drooping eyelids, inner brows lifted — a natural frown now reads, no need to overdo it', mood: 'Sad clips — crying, heartbreak, emotional scenes' },
-  { emotion: 'angry', photo: '/guide/angry.jpg', alt: 'Shouting woman', sign: 'Lowered brows, hard stare, open shout', mood: 'Angry clips — outbursts, scolding, attitude' },
-  { emotion: 'surprised', photo: '/guide/surprised.jpg', alt: 'Wide-eyed surprised woman', sign: 'Wide eyes, raised brows, open mouth', mood: 'Shock clips — double-takes, disbelief, reactions' },
-  { emotion: 'fearful', photo: '/guide/fearful.jpg', alt: 'Startled face with wide eyes', sign: 'Tense eyes, frozen stare, stiff face', mood: 'Nervous clips — tension, hesitation, waiting' },
-  { emotion: 'disgusted', photo: '/guide/disgusted.jpg', alt: 'Bearded man with a disgusted frown', sign: 'Wrinkled nose, lowered brows, curled lip', mood: 'Fed-up clips — dismissal, annoyance, disgust' },
-  { emotion: 'neutral', photo: '/guide/neutral.jpg', alt: 'Calm man with glasses', sign: 'Relaxed face, no strong cues', mood: 'Dialogue clips — deadpan delivery, scenes, speeches' },
+  { emotion: 'happy', photo: assetUrl('guide/happy.jpg'), alt: 'Smiling woman', sign: 'Smile, raised cheeks, laughing eyes', mood: 'Happy clips — laughter, dance, celebration' },
+  { emotion: 'sad', photo: assetUrl('guide/sad.jpg'), alt: 'Crying child', sign: 'Downturned mouth corners, drooping eyelids, inner brows lifted — a natural frown now reads, no need to overdo it', mood: 'Sad clips — crying, heartbreak, emotional scenes' },
+  { emotion: 'angry', photo: assetUrl('guide/angry.jpg'), alt: 'Shouting woman', sign: 'Lowered brows, hard stare, open shout', mood: 'Angry clips — outbursts, scolding, attitude' },
+  { emotion: 'surprised', photo: assetUrl('guide/surprised.jpg'), alt: 'Wide-eyed surprised woman', sign: 'Wide eyes, raised brows, open mouth', mood: 'Shock clips — double-takes, disbelief, reactions' },
+  { emotion: 'fearful', photo: assetUrl('guide/fearful.jpg'), alt: 'Startled face with wide eyes', sign: 'Tense eyes, frozen stare, stiff face', mood: 'Nervous clips — tension, hesitation, waiting' },
+  { emotion: 'disgusted', photo: assetUrl('guide/disgusted.jpg'), alt: 'Bearded man with a disgusted frown', sign: 'Wrinkled nose, lowered brows, curled lip', mood: 'Fed-up clips — dismissal, annoyance, disgust' },
+  { emotion: 'neutral', photo: assetUrl('guide/neutral.jpg'), alt: 'Calm man with glasses', sign: 'Relaxed face, no strong cues', mood: 'Dialogue clips — deadpan delivery, scenes, speeches' },
 ];
 
 function EmotionBars({ faces }) {
